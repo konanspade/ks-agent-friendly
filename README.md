@@ -1,8 +1,8 @@
 <p align="center">
-  <img src="assets/logo.svg" width="80" height="80" alt="Agent Friendly">
+  <img src="assets/logo.svg" width="80" height="80" alt="KS Agent Friendly">
 </p>
 
-<h1 align="center">Agent Friendly</h1>
+<h1 align="center">KS Agent Friendly</h1>
 
 <p align="center">
   <strong>Make your WordPress site readable by AI agents.</strong><br>
@@ -10,15 +10,14 @@
 </p>
 
 <p align="center">
-  <a href="https://wordpress.org/plugins/agent-friendly-wp/"><img src="https://img.shields.io/badge/WordPress-v1.0.0-21759b?logo=wordpress" alt="WordPress"></a>
   <a href="https://www.gnu.org/licenses/gpl-2.0.html"><img src="https://img.shields.io/badge/License-GPL--2.0--or--later-blue" alt="License"></a>
   <img src="https://img.shields.io/badge/PHP-7.4+-8892BF?logo=php&logoColor=white" alt="PHP 7.4+">
-  <img src="https://img.shields.io/badge/WordPress-6.0+-21759b" alt="WP 6.0+">
+  <img src="https://img.shields.io/badge/WordPress-7.0-21759b?logo=wordpress" alt="WP 7.0">
 </p>
 
 ---
 
-Agent Friendly is the most complete toolkit for making your WordPress site accessible to AI agents and large language models. Six modules provide structured content access, form interaction, commerce tools, and standards-based discovery.
+KS Agent Friendly makes your WordPress site accessible to AI agents and large language models. Six modules provide structured content access, form interaction, commerce tools, and standards-based discovery.
 
 ## Modules
 
@@ -51,15 +50,8 @@ Plus RFC 8288 `Link` HTTP headers and `<link>` HTML tags on every frontend page,
 
 ## Quick Start
 
-```bash
-# Install via WP-CLI
-wp plugin install agent-friendly-wp --activate
-
-# Or upload the folder to /wp-content/plugins/ and activate in wp-admin
-```
-
-1. Activate the plugin
-2. Visit **Agent Friendly** in your admin sidebar
+1. Upload the plugin folder to `/wp-content/plugins/` and activate in wp-admin
+2. Visit **KS Agent Friendly** in your admin sidebar
 3. LLMs.txt, Markdown Mirror, and WebMCP work immediately — zero config
 4. Install Fluent Forms or WooCommerce to unlock form and commerce tools
 
@@ -74,7 +66,7 @@ wp plugin install agent-friendly-wp --activate
 | `get_site_info` | Site name, description, language, content types |
 | `get_navigation` | Menu structure with nested links |
 | `list_posts` | Recent posts filtered by category or tag |
-| `get_contact_info` | Site name, URL, and email |
+| `get_contact_info` | Site name and URL |
 
 ### Forms (requires Fluent Forms)
 
@@ -98,18 +90,18 @@ wp plugin install agent-friendly-wp --activate
 
 ## REST API
 
-All endpoints under the `agent-friendly/v1` namespace.
+All endpoints under the `ks-agent-friendly/v1` namespace.
 
 ```
 # List all tools
-GET  /wp-json/agent-friendly/v1/tools
+GET  /wp-json/ks-agent-friendly/v1/tools
 
 # Execute any tool
-POST /wp-json/agent-friendly/v1/tools/execute
+POST /wp-json/ks-agent-friendly/v1/tools/execute
      {"tool": "search_site", "input": {"query": "hello"}}
 
 # Get a nonce for protected tools (requires login)
-GET  /wp-json/agent-friendly/v1/tools/nonce
+GET  /wp-json/ks-agent-friendly/v1/tools/nonce
 ```
 
 Individual backward-compatible endpoints also available at `/webmcp/search`, `/webmcp/page`, etc.
@@ -149,7 +141,6 @@ Your tool automatically appears in the WebMCP manifest, browser registration, di
 | Filter | Description |
 |--------|-------------|
 | `afwp_protected_tools` | Array of tool names that require nonce authentication |
-| `afwp_rate_limiter_ip` | Override the client IP used for rate limiting (for trusted proxy setups) |
 
 ## Security
 
@@ -159,10 +150,14 @@ Your tool automatically appears in the WebMCP manifest, browser registration, di
 - **Rate limiting** enforces per-IP request limits on the execute endpoint (default: 120 req / 60s)
 - Coexistence guard prevents conflicts if Konan & Spade Helper is active
 
+## External Services
+
+This plugin optionally connects to [Cloudflare Turnstile](https://www.cloudflare.com/products/turnstile/) for captcha verification on form submissions. When enabled, the Turnstile widget script is loaded from Cloudflare's CDN and verification requests are sent to their API. See Cloudflare's [Terms of Service](https://www.cloudflare.com/terms/) and [Privacy Policy](https://www.cloudflare.com/privacypolicy/).
+
 ## Architecture
 
 ```
-agent-friendly-wp.php          Bootstrap, constants, module registration
+ks-agent-friendly.php          Bootstrap, constants, module registration
 includes/
   class-plugin.php             Singleton container, module lifecycle
   class-tool-registry.php      Central tool registry + execute/nonce/settings REST
@@ -182,10 +177,10 @@ uninstall.php                  Clean removal of all options and transients
 
 ## Requirements
 
-- WordPress 6.0+
+- WordPress 7.0+
 - PHP 7.4+
 - **Optional:** Fluent Forms (for form tools)
-- **Optional:** WooCommerce 7.0+ (for commerce tools)
+- **Optional:** WooCommerce (for commerce tools)
 
 ## License
 
