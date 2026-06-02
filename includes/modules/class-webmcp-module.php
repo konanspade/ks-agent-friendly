@@ -50,7 +50,7 @@ class WebMCP_Module extends Module {
 
 	public function get_disabled_reason(): ?string {
 		if ( ! $this->is_enabled() ) {
-			return 'Disabled in Agent Friendly settings.';
+			return 'Disabled in KS Agent Friendly settings.';
 		}
 		return null;
 	}
@@ -69,7 +69,7 @@ class WebMCP_Module extends Module {
 		add_action( 'admin_menu',      function () { Admin_Page::register(); } );
 		add_action( 'wp_head',         [ $this, 'render_link_tags' ], 1 );
 		add_action( 'send_headers',    [ $this, 'send_link_headers' ] );
-		add_action( 'wp_footer',       [ $this, 'render_bootstrap_script' ], 100 );
+		add_action( 'wp_enqueue_scripts', [ $this, 'enqueue_bootstrap_script' ] );
 		add_filter( 'robots_txt',      [ $this, 'append_robots_txt' ], 110, 2 );
 	}
 
@@ -218,7 +218,7 @@ class WebMCP_Module extends Module {
 
 		if ( $this->is_tool_on( 'get_contact_info' ) ) {
 			$registry->register( 'get_contact_info', [
-				'description' => 'Get this site\'s contact information: name, URL, and email.',
+				'description' => 'Get this site\'s contact information: name and URL.',
 				'group'       => 'content',
 				'inputSchema' => [
 					'type'       => 'object',
@@ -501,17 +501,10 @@ class WebMCP_Module extends Module {
 	 * @return array
 	 */
 	public function tool_contact_info( array $input ): array {
-		$data = [
+		return [
 			'name' => get_bloginfo( 'name' ),
 			'url'  => home_url(),
 		];
-
-		$admin_email = get_option( 'admin_email' );
-		if ( $admin_email ) {
-			$data['email'] = $admin_email;
-		}
-
-		return $data;
 	}
 
 	/* ------------------------------------------------------------------
@@ -613,7 +606,7 @@ class WebMCP_Module extends Module {
 	 * Frontend bootstrap script
 	 * ---------------------------------------------------------------- */
 
-	public function render_bootstrap_script(): void {
+	public function enqueue_bootstrap_script(): void {
 		if ( is_admin() ) {
 			return;
 		}
@@ -637,34 +630,39 @@ class WebMCP_Module extends Module {
 			}
 		}
 
-		// Prepare tool definitions for JS (includes protected/turnstile flags).
-		$tool_defs_for_js = $tools;
-
 		if ( $has_turnstile && $turnstile_site_key ) {
 			// phpcs:ignore PluginCheck.CodeAnalysis.EnqueuedResourceOffloading.OffloadedContent -- Cloudflare Turnstile must load from their CDN; it cannot be self-hosted
 			wp_enqueue_script( 'afwp-turnstile', 'https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit', [], null, [ 'strategy' => 'defer', 'in_footer' => true ] );
 		}
 
-		?>
-<script id="afwp-webmcp-bootstrap">
+		wp_register_script( 'afwp-webmcp-bootstrap', false, [], AFWP_VERSION, [ 'in_footer' => true ] );
+		wp_enqueue_script( 'afwp-webmcp-bootstrap' );
+		wp_localize_script( 'afwp-webmcp-bootstrap', 'afwpBootstrap', [
+			'executeUrl'   => $execute_url,
+			'nonceUrl'     => $nonce_url,
+			'turnstileKey' => $turnstile_site_key,
+			'tools'        => $tools,
+			'version'      => AFWP_VERSION,
+		] );
+		wp_add_inline_script( 'afwp-webmcp-bootstrap', '
 (function() {
-	var EXECUTE = <?php echo wp_json_encode( $execute_url ); ?>;
-	var NONCE_URL = <?php echo wp_json_encode( $nonce_url ); ?>;
-	var TURNSTILE_KEY = <?php echo wp_json_encode( $turnstile_site_key ); ?>;
-	var cachedNonce = '';
+	var EXECUTE = afwpBootstrap.executeUrl;
+	var NONCE_URL = afwpBootstrap.nonceUrl;
+	var TURNSTILE_KEY = afwpBootstrap.turnstileKey;
+	var cachedNonce = "";
 
 	function getNonce() {
 		if (cachedNonce) return Promise.resolve(cachedNonce);
-		return fetch(NONCE_URL, {headers: {'Accept': 'application/json'}})
+		return fetch(NONCE_URL, {headers: {"Accept": "application/json"}})
 			.then(function(r) { return r.json(); })
 			.then(function(d) { cachedNonce = d.nonce; return cachedNonce; })
-			.catch(function() { return ''; });
+			.catch(function() { return ""; });
 	}
 
 	function getTurnstileToken() {
 		return new Promise(function(resolve, reject) {
-			var container = document.createElement('div');
-			container.style.cssText = 'position:fixed;bottom:20px;right:20px;z-index:999999;';
+			var container = document.createElement("div");
+			container.style.cssText = "position:fixed;bottom:20px;right:20px;z-index:999999;";
 			document.body.appendChild(container);
 			try {
 				turnstile.render(container, {
@@ -673,9 +671,9 @@ class WebMCP_Module extends Module {
 						if (container.parentNode) container.parentNode.removeChild(container);
 						resolve(token);
 					},
-					'error-callback': function() {
+					"error-callback": function() {
 						if (container.parentNode) container.parentNode.removeChild(container);
-						reject(new Error('Turnstile verification failed'));
+						reject(new Error("Turnstile verification failed"));
 					}
 				});
 			} catch(e) {
@@ -687,8 +685,7 @@ class WebMCP_Module extends Module {
 
 	function executeCall(toolName, input, toolDef) {
 		var promise = Promise.resolve(input);
-		var headers = {'Content-Type': 'application/json', 'Accept': 'application/json'};
-
+		var headers = {"Content-Type": "application/json", "Accept": "application/json"};
 		if (toolDef && toolDef.turnstile && TURNSTILE_KEY) {
 			promise = promise.then(function(inp) {
 				return getTurnstileToken().then(function(token) {
@@ -697,51 +694,43 @@ class WebMCP_Module extends Module {
 				});
 			});
 		}
-
-		if (toolDef && toolDef['protected']) {
+		if (toolDef && toolDef["protected"]) {
 			promise = promise.then(function(inp) {
 				return getNonce().then(function(nonce) {
-					if (nonce) headers['X-WP-Nonce'] = nonce;
+					if (nonce) headers["X-WP-Nonce"] = nonce;
 					return inp;
 				});
 			});
 		}
-
 		return promise.then(function(inp) {
-			return fetch(EXECUTE, {
-				method: 'POST',
-				headers: headers,
-				body: JSON.stringify({tool: toolName, input: inp})
-			});
+			return fetch(EXECUTE, {method: "POST", headers: headers, body: JSON.stringify({tool: toolName, input: inp})});
 		}).then(function(r) {
 			if (!r.ok) {
 				return r.json().catch(function(){return {};}).then(function(b) {
-					return {content: [{type:'text', text: JSON.stringify({error: b.error || r.statusText, status: r.status})}]};
+					return {content: [{type:"text", text: JSON.stringify({error: b.error || r.statusText, status: r.status})}]};
 				});
 			}
 			return r.json();
 		}).then(function(data) {
 			if (data && data.content) return data;
-			return {content: [{type:'text', text: JSON.stringify(data)}]};
+			return {content: [{type:"text", text: JSON.stringify(data)}]};
 		}).catch(function(err) {
-			return {content: [{type:'text', text: JSON.stringify({error: err.message || 'Network error'})}]};
+			return {content: [{type:"text", text: JSON.stringify({error: err.message || "Network error"})}]};
 		});
 	}
 
-	var tools = <?php echo wp_json_encode( $tool_defs_for_js, JSON_UNESCAPED_SLASHES ); ?>;
+	var tools = afwpBootstrap.tools;
 	var toolMap = {};
 	tools.forEach(function(t) { toolMap[t.name] = t; });
 
-	// Try provideContext first (newer WebMCP spec)
 	var registered = false;
-	if ('modelContext' in navigator) {
-		if (typeof navigator.modelContext.provideContext === 'function') {
+	if ("modelContext" in navigator) {
+		if (typeof navigator.modelContext.provideContext === "function") {
 			try {
 				navigator.modelContext.provideContext({
 					tools: tools.map(function(def) {
 						return {
-							name: def.name,
-							description: def.description,
+							name: def.name, description: def.description,
 							inputSchema: def.inputSchema || undefined,
 							annotations: def.annotations || {readOnlyHint: true},
 							execute: function(input) { return executeCall(def.name, input || {}, def); }
@@ -751,13 +740,11 @@ class WebMCP_Module extends Module {
 				registered = true;
 			} catch(e) {}
 		}
-
-		if (!registered && typeof navigator.modelContext.registerTool === 'function') {
+		if (!registered && typeof navigator.modelContext.registerTool === "function") {
 			tools.forEach(function(def) {
 				try {
 					navigator.modelContext.registerTool({
-						name: def.name,
-						description: def.description,
+						name: def.name, description: def.description,
 						inputSchema: def.inputSchema || undefined,
 						annotations: def.annotations || {readOnlyHint: true},
 						execute: function(input) { return executeCall(def.name, input || {}, def); }
@@ -768,16 +755,14 @@ class WebMCP_Module extends Module {
 		}
 	}
 
-	// Public API fallback
 	window.afwpTools = {
-		version: <?php echo wp_json_encode( AFWP_VERSION ); ?>,
+		version: afwpBootstrap.version,
 		execute: function(name, input) { return executeCall(name, input || {}, toolMap[name]); },
 		list: function() { return tools.map(function(t) { return t.name; }); },
 		tools: toolMap
 	};
 })();
-</script>
-		<?php
+		' );
 	}
 
 	/* ------------------------------------------------------------------
@@ -1118,7 +1103,7 @@ class WebMCP_Module extends Module {
 			'get_site_info'    => [ 'label' => 'Site Info',        'desc' => 'Site name, description, language, content types.' ],
 			'get_navigation'   => [ 'label' => 'Navigation',      'desc' => 'Menu structure with nested links.' ],
 			'list_posts'       => [ 'label' => 'List Posts',       'desc' => 'Recent posts filtered by category or tag.' ],
-			'get_contact_info' => [ 'label' => 'Contact Info',     'desc' => 'Business name and contact email.' ],
+			'get_contact_info' => [ 'label' => 'Contact Info',     'desc' => 'Business name and URL.' ],
 		];
 
 		$group_labels = [
@@ -1260,55 +1245,53 @@ class WebMCP_Module extends Module {
 			</p>
 		</form>
 
-		<script>
-		(function() {
-			var saveBtn   = document.getElementById('afwp-webmcp-save');
-			var statusEl  = document.getElementById('afwp-webmcp-status');
-			var enabledCb = document.getElementById('afwp-webmcp-enabled');
-			var endpoint  = <?php echo wp_json_encode( $settings_endpoint ); ?>;
-
-			saveBtn.addEventListener('click', function() {
-				var tools = {};
-				document.querySelectorAll('.afwp-webmcp-tool').forEach(function(cb) {
-					tools[cb.getAttribute('data-tool')] = cb.checked;
-				});
-
-				saveBtn.disabled = true;
-				statusEl.textContent = 'Saving...';
-				statusEl.style.color = '#646970';
-
-				fetch(endpoint, {
-					method: 'PUT',
-					headers: {
-						'Content-Type': 'application/json',
-						'X-WP-Nonce':   <?php echo wp_json_encode( wp_create_nonce( 'wp_rest' ) ); ?>
-					},
-					body: JSON.stringify({
-						enabled: enabledCb.checked,
-						tools:   tools
+		<?php
+		wp_register_script( 'afwp-admin-webmcp', false, [], AFWP_VERSION, true );
+		wp_enqueue_script( 'afwp-admin-webmcp' );
+		wp_localize_script( 'afwp-admin-webmcp', 'afwpWebmcp', [
+			'endpoint' => $settings_endpoint,
+			'nonce'    => wp_create_nonce( 'wp_rest' ),
+		] );
+		wp_add_inline_script( 'afwp-admin-webmcp', '
+			(function() {
+				var saveBtn   = document.getElementById("afwp-webmcp-save");
+				var statusEl  = document.getElementById("afwp-webmcp-status");
+				var enabledCb = document.getElementById("afwp-webmcp-enabled");
+				saveBtn.addEventListener("click", function() {
+					var tools = {};
+					document.querySelectorAll(".afwp-webmcp-tool").forEach(function(cb) {
+						tools[cb.getAttribute("data-tool")] = cb.checked;
+					});
+					saveBtn.disabled = true;
+					statusEl.textContent = "Saving...";
+					statusEl.style.color = "#646970";
+					fetch(afwpWebmcp.endpoint, {
+						method: "PUT",
+						headers: {"Content-Type": "application/json", "X-WP-Nonce": afwpWebmcp.nonce},
+						body: JSON.stringify({enabled: enabledCb.checked, tools: tools})
 					})
-				})
-				.then(function(r) { return r.json(); })
-				.then(function(data) {
-					if (data.enabled !== undefined) {
-						statusEl.textContent = 'Saved.';
-						statusEl.style.color = '#00a32a';
-					} else {
-						statusEl.textContent = 'Error: ' + (data.message || 'Unknown');
-						statusEl.style.color = '#d63638';
-					}
-				})
-				.catch(function(e) {
-					statusEl.textContent = 'Network error.';
-					statusEl.style.color = '#d63638';
-				})
-				.finally(function() {
-					saveBtn.disabled = false;
-					setTimeout(function() { statusEl.textContent = ''; }, 4000);
+					.then(function(r) { return r.json(); })
+					.then(function(data) {
+						if (data.enabled !== undefined) {
+							statusEl.textContent = "Saved.";
+							statusEl.style.color = "#00a32a";
+						} else {
+							statusEl.textContent = "Error: " + (data.message || "Unknown");
+							statusEl.style.color = "#d63638";
+						}
+					})
+					.catch(function() {
+						statusEl.textContent = "Network error.";
+						statusEl.style.color = "#d63638";
+					})
+					.finally(function() {
+						saveBtn.disabled = false;
+						setTimeout(function() { statusEl.textContent = ""; }, 4000);
+					});
 				});
-			});
-		})();
-		</script>
+			})();
+		' );
+		?>
 		<?php
 	}
 }

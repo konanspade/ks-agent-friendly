@@ -109,7 +109,7 @@ class Llms_Txt_Module extends Module {
 
 	public function handle_save(): void {
 		if ( ! current_user_can( 'manage_options' ) ) {
-			wp_die( 'Insufficient permissions.', 'Agent Friendly', [ 'response' => 403 ] );
+			wp_die( 'Insufficient permissions.', 'KS Agent Friendly', [ 'response' => 403 ] );
 		}
 		check_admin_referer( self::NONCE_ACTION );
 
@@ -127,7 +127,7 @@ class Llms_Txt_Module extends Module {
 
 	public function handle_import(): void {
 		if ( ! current_user_can( 'manage_options' ) ) {
-			wp_die( 'Insufficient permissions.', 'Agent Friendly', [ 'response' => 403 ] );
+			wp_die( 'Insufficient permissions.', 'KS Agent Friendly', [ 'response' => 403 ] );
 		}
 		check_admin_referer( self::NONCE_ACTION . '_import' );
 
@@ -156,7 +156,7 @@ class Llms_Txt_Module extends Module {
 
 	public function handle_generate(): void {
 		if ( ! current_user_can( 'manage_options' ) ) {
-			wp_die( 'Insufficient permissions.', 'Agent Friendly', [ 'response' => 403 ] );
+			wp_die( 'Insufficient permissions.', 'KS Agent Friendly', [ 'response' => 403 ] );
 		}
 		check_admin_referer( self::NONCE_ACTION . '_generate' );
 
@@ -232,11 +232,11 @@ class Llms_Txt_Module extends Module {
 		}
 
 		$physical     = $this->detect_physical_files();
-		$content      = $physical['has_file'] ? $physical['content'] : get_option( self::OPTION_LLMS_TXT, '' );
-		$content_full = $physical['has_full'] ? $physical['content_full'] : get_option( self::OPTION_LLMS_FULL_TXT, '' );
+		$content      = get_option( self::OPTION_LLMS_TXT, '' );
+		$content_full = get_option( self::OPTION_LLMS_FULL_TXT, '' );
 		$url          = home_url( '/llms.txt' );
 		$url_full     = home_url( '/llms-full.txt' );
-		$uses_files   = $physical['has_file'] || $physical['has_full'];
+		$has_physical = $physical['has_file'] || $physical['has_full'];
 
 		// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- read-only display param from redirect
 		if ( isset( $_GET['updated'] ) ) {
@@ -254,10 +254,9 @@ class Llms_Txt_Module extends Module {
 		<p class="pane-intro">
 			Serve <code>llms.txt</code> and <code>llms-full.txt</code> at your site root for
 			AI / LLM discovery (per the <a href="https://llmstxt.org/" target="_blank" rel="noopener">llms.txt spec</a>).
-			<?php if ( $uses_files ) : ?>
-				Physical files detected at site root — saving edits them directly.
-			<?php else : ?>
-				Content is stored in the database and served via rewrite rules.
+			Content is stored in the database and served via rewrite rules.
+			<?php if ( $has_physical ) : ?>
+				Physical files detected at the site root — you can import them below.
 			<?php endif; ?>
 		</p>
 
@@ -285,21 +284,26 @@ class Llms_Txt_Module extends Module {
 				</tbody>
 			</table>
 
-			<?php if ( $uses_files ) : ?>
-				<div style="background: #f0fdf4; border: 1px solid #86efac; border-radius: 6px; padding: 16px; max-width: 720px; margin: 20px 0;">
-					<h3 style="margin-top: 0;">Editing physical files</h3>
+			<?php if ( $has_physical ) : ?>
+				<div style="background: #eff6ff; border: 1px solid #93c5fd; border-radius: 6px; padding: 16px; max-width: 720px; margin: 20px 0;">
+					<h3 style="margin-top: 0;">Physical files detected</h3>
 					<p>
 						<?php if ( $physical['has_file'] ) : ?>
-							<code>llms.txt</code> at <code><?php echo esc_html( ABSPATH . 'llms.txt' ); ?></code>
+							<code>llms.txt</code> found at site root
 							(<?php echo esc_html( strlen( $physical['content'] ) ); ?> bytes)<br />
 						<?php endif; ?>
 						<?php if ( $physical['has_full'] ) : ?>
-							<code>llms-full.txt</code> at <code><?php echo esc_html( ABSPATH . 'llms-full.txt' ); ?></code>
+							<code>llms-full.txt</code> found at site root
 							(<?php echo esc_html( strlen( $physical['content_full'] ) ); ?> bytes)
 						<?php endif; ?>
 					</p>
-					<p style="font-size: 12px; color: #15803d;">
-						Saving below will write directly to the physical file(s). Your web server serves these as static files.
+					<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" style="margin: 0;">
+						<?php wp_nonce_field( self::NONCE_ACTION . '_import' ); ?>
+						<input type="hidden" name="action" value="afwp_llms_txt_import">
+						<button type="submit" class="button">Import physical files into database</button>
+					</form>
+					<p style="font-size: 12px; color: #3b82f6; margin-bottom: 0;">
+						Content is served via rewrite rules from the database. Use Import to copy physical file content into the editor.
 					</p>
 				</div>
 			<?php endif; ?>
@@ -482,30 +486,13 @@ class Llms_Txt_Module extends Module {
 	 * ---------------------------------------------------------------- */
 
 	private function save_content( ?string $content, ?string $content_full ): void {
-		$physical = $this->detect_physical_files();
-
 		if ( null !== $content ) {
 			update_option( self::OPTION_LLMS_TXT, $content, false );
-			if ( $physical['has_file'] ) {
-				$this->write_physical_file( ABSPATH . 'llms.txt', $content );
-			}
 		}
 
 		if ( null !== $content_full ) {
 			update_option( self::OPTION_LLMS_FULL_TXT, $content_full, false );
-			if ( $physical['has_full'] ) {
-				$this->write_physical_file( ABSPATH . 'llms-full.txt', $content_full );
-			}
 		}
-	}
-
-	private function write_physical_file( string $path, string $content ): bool {
-		// phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_is_writable -- physical file at ABSPATH, not plugin file
-		if ( ! is_writable( $path ) && ! is_writable( dirname( $path ) ) ) {
-			return false;
-		}
-		// phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_file_put_contents
-		return false !== file_put_contents( $path, $content );
 	}
 
 	private function rewrite_links_to_md( string $content ): string {
@@ -560,13 +547,18 @@ class Llms_Txt_Module extends Module {
 			'content_full' => '',
 		];
 
-		$path = ABSPATH . 'llms.txt';
+		if ( ! function_exists( 'get_home_path' ) ) {
+			require_once ABSPATH . 'wp-admin/includes/file.php';
+		}
+		$home_path = get_home_path();
+
+		$path = $home_path . 'llms.txt';
 		if ( file_exists( $path ) && is_readable( $path ) ) {
 			$result['has_file'] = true;
 			$result['content']  = (string) file_get_contents( $path );
 		}
 
-		$path_full = ABSPATH . 'llms-full.txt';
+		$path_full = $home_path . 'llms-full.txt';
 		if ( file_exists( $path_full ) && is_readable( $path_full ) ) {
 			$result['has_full']     = true;
 			$result['content_full'] = (string) file_get_contents( $path_full );

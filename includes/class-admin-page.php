@@ -11,7 +11,7 @@ defined( 'ABSPATH' ) || exit;
 
 class Admin_Page {
 
-	const MENU_SLUG  = 'agent-friendly';
+	const MENU_SLUG  = 'ks-agent-friendly';
 	const CAPABILITY = 'manage_options';
 
 	/** @var bool */
@@ -62,12 +62,13 @@ class Admin_Page {
 		self::add_menu();
 		add_filter( 'parent_file', [ self::class, 'fix_parent_file' ] );
 		add_filter( 'submenu_file', [ self::class, 'fix_submenu_file' ], 10, 2 );
+		add_action( 'admin_enqueue_scripts', [ self::class, 'enqueue_admin_assets' ] );
 	}
 
 	public static function add_menu(): void {
 		add_menu_page(
-			'Agent Friendly',
-			'Agent Friendly',
+			'KS Agent Friendly',
+			'KS Agent Friendly',
 			self::CAPABILITY,
 			self::MENU_SLUG,
 			[ self::class, 'render_page' ],
@@ -118,58 +119,14 @@ class Admin_Page {
 		return $submenu_file;
 	}
 
-	public static function render_page(): void {
-		if ( ! current_user_can( self::CAPABILITY ) ) {
+	public static function enqueue_admin_assets( string $hook ): void {
+		if ( 'toplevel_page_' . self::MENU_SLUG !== $hook ) {
 			return;
 		}
 
-		$tabs       = self::tabs();
-		$tab_slugs  = array_column( $tabs, 'slug' );
-		// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- read-only tab routing
-		$active_tab = isset( $_GET['tab'] ) ? sanitize_key( wp_unslash( $_GET['tab'] ) ) : '';
-		if ( ! in_array( $active_tab, $tab_slugs, true ) ) {
-			$active_tab = 'overview';
-		}
-
-		?>
-		<div class="wrap afwp-host">
-			<h1 class="wp-heading-inline" style="display: flex; align-items: center; gap: 10px;">
-				<img src="<?php echo esc_url( AFWP_URL . 'assets/logo.svg' ); ?>" alt="" width="28" height="28" style="vertical-align: middle;">
-				Agent Friendly
-			</h1>
-
-			<?php settings_errors(); ?>
-
-			<div class="afwp-layout">
-				<nav class="afwp-vnav" aria-label="Agent Friendly sections">
-					<?php foreach ( $tabs as $t ) :
-						$url = self::tab_url( $t['slug'] );
-						$cls = $t['slug'] === $active_tab ? 'active' : '';
-						?>
-						<a href="<?php echo esc_url( $url ); ?>" class="<?php echo esc_attr( $cls ); ?>" data-afwp-tab="<?php echo esc_attr( $t['slug'] ); ?>">
-							<span class="dashicons dashicons-<?php echo esc_attr( $t['icon'] ); ?>"></span>
-							<span class="afwp-vnav-label"><?php echo esc_html( $t['label'] ); ?></span>
-						</a>
-					<?php endforeach; ?>
-				</nav>
-
-				<?php
-				$active = null;
-				foreach ( $tabs as $t ) {
-					if ( $t['slug'] === $active_tab ) { $active = $t; break; }
-				}
-				if ( $active ) {
-					echo '<section class="afwp-pane">';
-					$args = [];
-					if ( isset( $active['module_id'] ) ) { $args[] = $active['module_id']; }
-					call_user_func_array( $active['render'], $args );
-					echo '</section>';
-				}
-				?>
-			</div>
-		</div>
-
-		<style>
+		wp_register_style( 'afwp-admin', false, [], AFWP_VERSION );
+		wp_enqueue_style( 'afwp-admin' );
+		wp_add_inline_style( 'afwp-admin', '
 			.afwp-host .afwp-layout {
 				display: flex;
 				gap: 20px;
@@ -236,7 +193,59 @@ class Admin_Page {
 				.afwp-host .afwp-layout { flex-direction: column; }
 				.afwp-host .afwp-vnav { flex: 0 0 auto; position: static; }
 			}
-		</style>
+		' );
+	}
+
+	public static function render_page(): void {
+		if ( ! current_user_can( self::CAPABILITY ) ) {
+			return;
+		}
+
+		$tabs       = self::tabs();
+		$tab_slugs  = array_column( $tabs, 'slug' );
+		// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- read-only tab routing
+		$active_tab = isset( $_GET['tab'] ) ? sanitize_key( wp_unslash( $_GET['tab'] ) ) : '';
+		if ( ! in_array( $active_tab, $tab_slugs, true ) ) {
+			$active_tab = 'overview';
+		}
+
+		?>
+		<div class="wrap afwp-host">
+			<h1 class="wp-heading-inline" style="display: flex; align-items: center; gap: 10px;">
+				<img src="<?php echo esc_url( AFWP_URL . 'assets/logo.svg' ); ?>" alt="" width="28" height="28" style="vertical-align: middle;">
+				KS Agent Friendly
+			</h1>
+
+			<?php settings_errors(); ?>
+
+			<div class="afwp-layout">
+				<nav class="afwp-vnav" aria-label="KS Agent Friendly sections">
+					<?php foreach ( $tabs as $t ) :
+						$url = self::tab_url( $t['slug'] );
+						$cls = $t['slug'] === $active_tab ? 'active' : '';
+						?>
+						<a href="<?php echo esc_url( $url ); ?>" class="<?php echo esc_attr( $cls ); ?>" data-afwp-tab="<?php echo esc_attr( $t['slug'] ); ?>">
+							<span class="dashicons dashicons-<?php echo esc_attr( $t['icon'] ); ?>"></span>
+							<span class="afwp-vnav-label"><?php echo esc_html( $t['label'] ); ?></span>
+						</a>
+					<?php endforeach; ?>
+				</nav>
+
+				<?php
+				$active = null;
+				foreach ( $tabs as $t ) {
+					if ( $t['slug'] === $active_tab ) { $active = $t; break; }
+				}
+				if ( $active ) {
+					echo '<section class="afwp-pane">';
+					$args = [];
+					if ( isset( $active['module_id'] ) ) { $args[] = $active['module_id']; }
+					call_user_func_array( $active['render'], $args );
+					echo '</section>';
+				}
+				?>
+			</div>
+		</div>
 		<?php
 	}
 
@@ -254,7 +263,7 @@ class Admin_Page {
 		?>
 		<div style="margin-bottom: 24px;">
 			<p style="font-size: 14px; color: #50575e; margin: 0;">
-				Agent Friendly makes your site readable by AI agents. Modules provide
+				KS Agent Friendly makes your site readable by AI agents. Modules provide
 				structured content access, form submission, commerce tools, and rich discovery for LLMs and AI-powered browsers.
 			</p>
 		</div>
@@ -437,51 +446,50 @@ class Admin_Page {
     ] );
 } );</pre>
 
-		<script>
-		(function() {
-			var saveBtn  = document.getElementById('afwp-settings-save');
-			var statusEl = document.getElementById('afwp-settings-status');
-
-			saveBtn.addEventListener('click', function() {
-				var rlMax    = parseInt(document.getElementById('afwp-rl-max').value, 10) || 120;
-				var rlWindow = parseInt(document.getElementById('afwp-rl-window').value, 10) || 60;
-
-				saveBtn.disabled = true;
-				statusEl.textContent = 'Saving...';
-				statusEl.style.color = '#646970';
-
-				fetch(<?php echo wp_json_encode( rest_url( Plugin::REST_NAMESPACE . '/settings' ) ); ?>, {
-					method: 'PUT',
-					headers: {
-						'Content-Type': 'application/json',
-						'X-WP-Nonce': <?php echo wp_json_encode( wp_create_nonce( 'wp_rest' ) ); ?>
-					},
-					body: JSON.stringify({
-						rate_limit_max: rlMax,
-						rate_limit_window: rlWindow
+		<?php
+		wp_register_script( 'afwp-admin-settings', false, [], AFWP_VERSION, true );
+		wp_enqueue_script( 'afwp-admin-settings' );
+		wp_localize_script( 'afwp-admin-settings', 'afwpSettings', [
+			'endpoint' => rest_url( Plugin::REST_NAMESPACE . '/settings' ),
+			'nonce'    => wp_create_nonce( 'wp_rest' ),
+		] );
+		wp_add_inline_script( 'afwp-admin-settings', '
+			(function() {
+				var saveBtn  = document.getElementById("afwp-settings-save");
+				var statusEl = document.getElementById("afwp-settings-status");
+				saveBtn.addEventListener("click", function() {
+					var rlMax    = parseInt(document.getElementById("afwp-rl-max").value, 10) || 120;
+					var rlWindow = parseInt(document.getElementById("afwp-rl-window").value, 10) || 60;
+					saveBtn.disabled = true;
+					statusEl.textContent = "Saving...";
+					statusEl.style.color = "#646970";
+					fetch(afwpSettings.endpoint, {
+						method: "PUT",
+						headers: {"Content-Type": "application/json", "X-WP-Nonce": afwpSettings.nonce},
+						body: JSON.stringify({rate_limit_max: rlMax, rate_limit_window: rlWindow})
 					})
-				})
-				.then(function(r) { return r.json(); })
-				.then(function(data) {
-					if (data.rate_limit_max !== undefined) {
-						statusEl.textContent = 'Saved.';
-						statusEl.style.color = '#00a32a';
-					} else {
-						statusEl.textContent = 'Error: ' + (data.message || 'Unknown');
-						statusEl.style.color = '#d63638';
-					}
-				})
-				.catch(function() {
-					statusEl.textContent = 'Network error.';
-					statusEl.style.color = '#d63638';
-				})
-				.finally(function() {
-					saveBtn.disabled = false;
-					setTimeout(function() { statusEl.textContent = ''; }, 4000);
+					.then(function(r) { return r.json(); })
+					.then(function(data) {
+						if (data.rate_limit_max !== undefined) {
+							statusEl.textContent = "Saved.";
+							statusEl.style.color = "#00a32a";
+						} else {
+							statusEl.textContent = "Error: " + (data.message || "Unknown");
+							statusEl.style.color = "#d63638";
+						}
+					})
+					.catch(function() {
+						statusEl.textContent = "Network error.";
+						statusEl.style.color = "#d63638";
+					})
+					.finally(function() {
+						saveBtn.disabled = false;
+						setTimeout(function() { statusEl.textContent = ""; }, 4000);
+					});
 				});
-			});
-		})();
-		</script>
+			})();
+		' );
+		?>
 		<?php
 	}
 }

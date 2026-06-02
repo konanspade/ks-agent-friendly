@@ -49,7 +49,7 @@ class WooCommerce_Module extends Module {
 			return 'WooCommerce plugin is not active.';
 		}
 		if ( ! (bool) get_option( self::OPTION_ENABLED, true ) ) {
-			return 'Disabled in Agent Friendly settings.';
+			return 'Disabled in KS Agent Friendly settings.';
 		}
 		return null;
 	}
@@ -782,55 +782,53 @@ class WooCommerce_Module extends Module {
 			</p>
 		</form>
 
-		<script>
-		(function() {
-			var saveBtn   = document.getElementById('afwp-woo-save');
-			var statusEl  = document.getElementById('afwp-woo-status');
-			var enabledCb = document.getElementById('afwp-woo-enabled');
-			var endpoint  = <?php echo wp_json_encode( $settings_endpoint ); ?>;
-
-			saveBtn.addEventListener('click', function() {
-				var tools = {};
-				document.querySelectorAll('.afwp-woo-tool').forEach(function(cb) {
-					tools[cb.getAttribute('data-tool')] = cb.checked;
-				});
-
-				saveBtn.disabled = true;
-				statusEl.textContent = 'Saving...';
-				statusEl.style.color = '#646970';
-
-				fetch(endpoint, {
-					method: 'PUT',
-					headers: {
-						'Content-Type': 'application/json',
-						'X-WP-Nonce':   <?php echo wp_json_encode( wp_create_nonce( 'wp_rest' ) ); ?>
-					},
-					body: JSON.stringify({
-						enabled: enabledCb.checked,
-						tools:   tools
+		<?php
+		wp_register_script( 'afwp-admin-woo', false, [], AFWP_VERSION, true );
+		wp_enqueue_script( 'afwp-admin-woo' );
+		wp_localize_script( 'afwp-admin-woo', 'afwpWoo', [
+			'endpoint' => $settings_endpoint,
+			'nonce'    => wp_create_nonce( 'wp_rest' ),
+		] );
+		wp_add_inline_script( 'afwp-admin-woo', '
+			(function() {
+				var saveBtn   = document.getElementById("afwp-woo-save");
+				var statusEl  = document.getElementById("afwp-woo-status");
+				var enabledCb = document.getElementById("afwp-woo-enabled");
+				saveBtn.addEventListener("click", function() {
+					var tools = {};
+					document.querySelectorAll(".afwp-woo-tool").forEach(function(cb) {
+						tools[cb.getAttribute("data-tool")] = cb.checked;
+					});
+					saveBtn.disabled = true;
+					statusEl.textContent = "Saving...";
+					statusEl.style.color = "#646970";
+					fetch(afwpWoo.endpoint, {
+						method: "PUT",
+						headers: {"Content-Type": "application/json", "X-WP-Nonce": afwpWoo.nonce},
+						body: JSON.stringify({enabled: enabledCb.checked, tools: tools})
 					})
-				})
-				.then(function(r) { return r.json(); })
-				.then(function(data) {
-					if (data.enabled !== undefined) {
-						statusEl.textContent = 'Saved.';
-						statusEl.style.color = '#00a32a';
-					} else {
-						statusEl.textContent = 'Error: ' + (data.message || 'Unknown');
-						statusEl.style.color = '#d63638';
-					}
-				})
-				.catch(function(e) {
-					statusEl.textContent = 'Network error.';
-					statusEl.style.color = '#d63638';
-				})
-				.finally(function() {
-					saveBtn.disabled = false;
-					setTimeout(function() { statusEl.textContent = ''; }, 4000);
+					.then(function(r) { return r.json(); })
+					.then(function(data) {
+						if (data.enabled !== undefined) {
+							statusEl.textContent = "Saved.";
+							statusEl.style.color = "#00a32a";
+						} else {
+							statusEl.textContent = "Error: " + (data.message || "Unknown");
+							statusEl.style.color = "#d63638";
+						}
+					})
+					.catch(function() {
+						statusEl.textContent = "Network error.";
+						statusEl.style.color = "#d63638";
+					})
+					.finally(function() {
+						saveBtn.disabled = false;
+						setTimeout(function() { statusEl.textContent = ""; }, 4000);
+					});
 				});
-			});
-		})();
-		</script>
+			})();
+		' );
+		?>
 		<?php
 	}
 }

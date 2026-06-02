@@ -39,7 +39,7 @@ class Fluent_Forms_Module extends Module {
 			return 'Fluent Forms plugin is not active.';
 		}
 		if ( ! (bool) get_option( self::OPTION_ENABLED, true ) ) {
-			return 'Disabled in Agent Friendly settings.';
+			return 'Disabled in KS Agent Friendly settings.';
 		}
 		return null;
 	}
@@ -270,7 +270,7 @@ class Fluent_Forms_Module extends Module {
 			'created_at' => $now,
 			'updated_at' => $now,
 			'ip'         => isset( $_SERVER['REMOTE_ADDR'] ) ? sanitize_text_field( wp_unslash( $_SERVER['REMOTE_ADDR'] ) ) : '',
-			'browser'    => 'AI Agent (Agent Friendly)',
+			'browser'    => 'AI Agent (KS Agent Friendly)',
 			'source_url' => home_url(),
 		];
 
@@ -474,51 +474,53 @@ class Fluent_Forms_Module extends Module {
 			</p>
 		</form>
 
-		<script>
-		(function() {
-			var saveBtn   = document.getElementById('afwp-forms-save');
-			var statusEl  = document.getElementById('afwp-forms-status');
-			var endpoint  = <?php echo wp_json_encode( $settings_endpoint ); ?>;
-
-			saveBtn.addEventListener('click', function() {
-				saveBtn.disabled = true;
-				statusEl.textContent = 'Saving...';
-				statusEl.style.color = '#646970';
-
-				fetch(endpoint, {
-					method: 'PUT',
-					headers: {
-						'Content-Type': 'application/json',
-						'X-WP-Nonce':   <?php echo wp_json_encode( wp_create_nonce( 'wp_rest' ) ); ?>
-					},
-					body: JSON.stringify({
-						enabled:            document.getElementById('afwp-forms-enabled').checked,
-						turnstile_enabled:  document.getElementById('afwp-turnstile-enabled').checked,
-						turnstile_site_key:   document.getElementById('afwp-turnstile-site-key').value,
-						turnstile_secret_key: document.getElementById('afwp-turnstile-secret-key').value
+		<?php
+		wp_register_script( 'afwp-admin-forms', false, [], AFWP_VERSION, true );
+		wp_enqueue_script( 'afwp-admin-forms' );
+		wp_localize_script( 'afwp-admin-forms', 'afwpForms', [
+			'endpoint' => $settings_endpoint,
+			'nonce'    => wp_create_nonce( 'wp_rest' ),
+		] );
+		wp_add_inline_script( 'afwp-admin-forms', '
+			(function() {
+				var saveBtn   = document.getElementById("afwp-forms-save");
+				var statusEl  = document.getElementById("afwp-forms-status");
+				saveBtn.addEventListener("click", function() {
+					saveBtn.disabled = true;
+					statusEl.textContent = "Saving...";
+					statusEl.style.color = "#646970";
+					fetch(afwpForms.endpoint, {
+						method: "PUT",
+						headers: {"Content-Type": "application/json", "X-WP-Nonce": afwpForms.nonce},
+						body: JSON.stringify({
+							enabled: document.getElementById("afwp-forms-enabled").checked,
+							turnstile_enabled: document.getElementById("afwp-turnstile-enabled").checked,
+							turnstile_site_key: document.getElementById("afwp-turnstile-site-key").value,
+							turnstile_secret_key: document.getElementById("afwp-turnstile-secret-key").value
+						})
 					})
-				})
-				.then(function(r) { return r.json(); })
-				.then(function(data) {
-					if (data.enabled !== undefined) {
-						statusEl.textContent = 'Saved.';
-						statusEl.style.color = '#00a32a';
-					} else {
-						statusEl.textContent = 'Error: ' + (data.message || 'Unknown');
-						statusEl.style.color = '#d63638';
-					}
-				})
-				.catch(function(e) {
-					statusEl.textContent = 'Network error.';
-					statusEl.style.color = '#d63638';
-				})
-				.finally(function() {
-					saveBtn.disabled = false;
-					setTimeout(function() { statusEl.textContent = ''; }, 4000);
+					.then(function(r) { return r.json(); })
+					.then(function(data) {
+						if (data.enabled !== undefined) {
+							statusEl.textContent = "Saved.";
+							statusEl.style.color = "#00a32a";
+						} else {
+							statusEl.textContent = "Error: " + (data.message || "Unknown");
+							statusEl.style.color = "#d63638";
+						}
+					})
+					.catch(function() {
+						statusEl.textContent = "Network error.";
+						statusEl.style.color = "#d63638";
+					})
+					.finally(function() {
+						saveBtn.disabled = false;
+						setTimeout(function() { statusEl.textContent = ""; }, 4000);
+					});
 				});
-			});
-		})();
-		</script>
+			})();
+		' );
+		?>
 		<?php
 	}
 }

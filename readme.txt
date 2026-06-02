@@ -1,4 +1,4 @@
-=== Agent Friendly ===
+=== KS Agent Friendly ===
 Contributors: konanspade
 Tags: ai, llm, markdown, webmcp, woocommerce
 Requires at least: 6.0
@@ -12,7 +12,7 @@ Make your WordPress site readable by AI agents. LLMs.txt, Markdown Mirror, WebMC
 
 == Description ==
 
-Agent Friendly is the most complete toolkit for making your WordPress site accessible to AI agents and large language models. Six modules work together to provide structured content access, form interaction, commerce tools, and standards-based discovery.
+KS Agent Friendly makes your WordPress site accessible to AI agents and large language models. Six modules work together to provide structured content access, form interaction, commerce tools, and standards-based discovery.
 
 = Content Layer =
 
@@ -54,12 +54,11 @@ Agent Friendly is the most complete toolkit for making your WordPress site acces
 * **Backward-compatible REST** — individual `/webmcp/*` endpoints remain alongside the unified execute endpoint
 * **Clean uninstall** — removes all options and transients on deletion
 * **No external dependencies** — uses only PHP's built-in DOMDocument
-* **Lightweight** — no JavaScript bundles or CSS files to enqueue
 
 = How It Works =
 
 1. Install and activate the plugin
-2. Visit **Agent Friendly** in your admin sidebar
+2. Visit **KS Agent Friendly** in your admin sidebar
 3. LLMs.txt, Markdown Mirror, and WebMCP work immediately
 4. Install Fluent Forms or WooCommerce to unlock form and commerce tools
 5. Optionally configure Turnstile captcha and rate limiting in Settings
@@ -76,9 +75,9 @@ Agent Friendly is the most complete toolkit for making your WordPress site acces
 
 = REST API =
 
-All endpoints use the `agent-friendly/v1` namespace:
+All endpoints use the `ks-agent-friendly/v1` namespace:
 
-**Tool Registry (new in 2.0)**
+**Tool Registry**
 
 * `GET /tools` — list all registered tools with schemas
 * `POST /tools/execute` — invoke any tool by name (rate-limited)
@@ -154,11 +153,11 @@ Your tool automatically appears in the WebMCP manifest, browser registration, an
 
 == Installation ==
 
-1. Upload the `agent-friendly-wp` folder to `/wp-content/plugins/`
+1. Upload the plugin folder to `/wp-content/plugins/`
 2. Activate the plugin through the **Plugins** menu
-3. Visit **Agent Friendly** in your admin sidebar to configure
+3. Visit **KS Agent Friendly** in your admin sidebar to configure
 
-Or install directly from the WordPress plugin repository by searching for "Agent Friendly".
+Or install directly from the WordPress plugin repository by searching for "KS Agent Friendly".
 
 = Optional Dependencies =
 
@@ -166,6 +165,24 @@ Or install directly from the WordPress plugin repository by searching for "Agent
 * **WooCommerce** — install to enable product search, cart, and coupon tools
 
 Neither is required. The plugin works fully without them — the Forms and Commerce tabs will show install prompts.
+
+== External services ==
+
+This plugin optionally connects to Cloudflare Turnstile for captcha verification on form submissions.
+
+= Cloudflare Turnstile =
+
+When Turnstile protection is enabled in **KS Agent Friendly → Forms**, the plugin:
+
+* Loads the Turnstile widget script from `https://challenges.cloudflare.com/turnstile/v0/api.js` on frontend pages where tools are registered.
+* Sends verification requests to `https://challenges.cloudflare.com/turnstile/v0/siteverify` when a form submission includes a Turnstile token. The token and the submitter's IP address are sent for verification.
+
+This service is provided by Cloudflare, Inc.
+
+* [Cloudflare Terms of Service](https://www.cloudflare.com/terms/)
+* [Cloudflare Privacy Policy](https://www.cloudflare.com/privacypolicy/)
+
+Turnstile is disabled by default and only activates when you configure it with your Cloudflare site key and secret key in the plugin settings.
 
 == Frequently Asked Questions ==
 
@@ -175,7 +192,7 @@ Yes. The plugin works independently of your theme. Markdown Mirror intelligently
 
 = Will this slow down my site? =
 
-No. The plugin adds a lightweight inline script for WebMCP (skipped if the browser doesn't support `navigator.modelContext`), a few `<link>` tags, and HTTP headers. Markdown conversion and tool execution happen on-demand, not on every page load.
+No. The plugin adds a lightweight enqueued script for WebMCP (skipped if the browser doesn't support `navigator.modelContext`), a few `<link>` tags, and HTTP headers. Markdown conversion and tool execution happen on-demand, not on every page load.
 
 = Is my content exposed publicly? =
 
@@ -183,19 +200,19 @@ Read-only tools only serve published content that's already publicly accessible.
 
 = How does rate limiting work? =
 
-The `/tools/execute` endpoint enforces per-IP rate limits using WordPress transients. Default: 120 requests per 60 seconds. Configurable in **Agent Friendly → Settings**. Returns HTTP 429 with `Retry-After` header when exceeded.
+The `/tools/execute` endpoint enforces per-IP rate limits using WordPress transients. Default: 120 requests per 60 seconds. Configurable in **KS Agent Friendly → Settings**. Returns HTTP 429 with `Retry-After` header when exceeded.
 
 = How does Turnstile captcha work? =
 
-When enabled in **Agent Friendly → Forms**, the `submit_form` tool requires a Cloudflare Turnstile token. In browsers with WebMCP support, the bootstrap script automatically renders a managed Turnstile widget (often invisible) and includes the token in the request. Server-side, the token is verified via Cloudflare's siteverify API before the form is processed.
+When enabled in **KS Agent Friendly → Forms**, the `submit_form` tool requires a Cloudflare Turnstile token. In browsers with WebMCP support, the bootstrap script automatically renders a managed Turnstile widget (often invisible) and includes the token in the request. Server-side, the token is verified via Cloudflare's siteverify API before the form is processed.
 
 = Can I use this alongside other SEO plugins? =
 
-Yes. Agent Friendly doesn't modify your site's SEO output. It adds new endpoints that don't conflict with any SEO plugin.
+Yes. KS Agent Friendly doesn't modify your site's SEO output. It adds new endpoints that don't conflict with any SEO plugin.
 
 = Can I use this alongside Konan & Spade Helper? =
 
-No. If KS Helper is active, Agent Friendly will show a notice and disable itself to avoid duplicate endpoints. Deactivate one before using the other.
+No. If KS Helper is active, KS Agent Friendly will show a notice and disable itself to avoid duplicate endpoints. Deactivate one before using the other.
 
 = What if /md/ or discovery URLs return 404? =
 

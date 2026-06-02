@@ -1,6 +1,6 @@
 <?php
 /**
- * Uninstall cleanup for Agent Friendly.
+ * Uninstall cleanup for KS Agent Friendly.
  *
  * Runs when the plugin is deleted from wp-admin.
  *

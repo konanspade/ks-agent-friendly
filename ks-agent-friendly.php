@@ -1,6 +1,6 @@
 <?php
 /**
- * Plugin Name:       Agent Friendly
+ * Plugin Name:       KS Agent Friendly
  * Plugin URI:        https://agentfriendly.dev
  * Description:       Make your WordPress site readable by AI agents. Serves LLMs.txt, Markdown Mirror, WebMCP tool discovery, Fluent Forms submission, WooCommerce tools, and rich AI discovery endpoints.
  * Version:           1.0.0
@@ -10,7 +10,7 @@
  * Author URI:        https://konanspade.com
  * License:           GPL-2.0-or-later
  * License URI:       https://www.gnu.org/licenses/gpl-2.0.html
- * Text Domain:       agent-friendly
+ * Text Domain:       ks-agent-friendly
  *
  * @package AgentFriendlyWP
  */
@@ -21,7 +21,7 @@ defined( 'ABSPATH' ) || exit;
 // serves the same /llms.txt, /md/, and /.well-known/webmcp.json URLs.
 if ( defined( 'KS_HELPER_VERSION' ) ) {
 	add_action( 'admin_notices', function () {
-		echo '<div class="notice notice-warning"><p><strong>Agent Friendly:</strong> '
+		echo '<div class="notice notice-warning"><p><strong>KS Agent Friendly:</strong> '
 			. 'Konan &amp; Spade Helper is active and already provides LLMs.txt, Markdown Mirror, and WebMCP. '
 			. 'Please deactivate one of the two plugins to avoid conflicts.</p></div>';
 	} );

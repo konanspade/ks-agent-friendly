@@ -11,7 +11,7 @@ defined( 'ABSPATH' ) || exit;
 
 class Plugin {
 
-	const REST_NAMESPACE = 'agent-friendly/v1';
+	const REST_NAMESPACE = 'ks-agent-friendly/v1';
 
 	/** @var Plugin|null */
 	private static $instance = null;

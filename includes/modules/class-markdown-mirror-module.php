@@ -160,7 +160,7 @@ class Markdown_Mirror_Module extends Module {
 
 	public function handle_save_footer(): void {
 		if ( ! current_user_can( 'manage_options' ) ) {
-			wp_die( 'Insufficient permissions.', 'Agent Friendly', [ 'response' => 403 ] );
+			wp_die( 'Insufficient permissions.', 'KS Agent Friendly', [ 'response' => 403 ] );
 		}
 		check_admin_referer( self::NONCE_ACTION );
 
@@ -580,8 +580,7 @@ class Markdown_Mirror_Module extends Module {
 	private function get_default_footer(): string {
 		$name = get_bloginfo( 'name' );
 		return "## {$name}\n\n"
-			. "- Website: " . home_url() . "\n"
-			. "- Contact: " . get_option( 'admin_email' ) . "\n";
+			. "- Website: " . home_url() . "\n";
 	}
 
 	private function fetch_rendered_html( string $url ): string {
